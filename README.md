@@ -81,7 +81,8 @@ docker compose -f docker-compose.prod.yml up --build -d
 
 | Serviço     | Porta (dev) | Porta (prod) |
 |-------------|-------------|--------------|
-| API         | 8000        | 8000         |
+| API 1       | 8000        | 8000         |
+| API 2       | 8001        | 8000         |
 | FrontEn     | 5500        | 5500         |
 | PostgreSQL  | 5432        | não exposta  |
 
