@@ -1,35 +1,73 @@
 services:
 
-  db:
+  # ---------- Microsserviço 1: Catálogo ----------
+  db_catalogo:
     image: postgres:16-alpine
-    container_name: biblioteca_db_prod
+    container_name: biblioteca_db_catalogo_prod
     environment:
-      POSTGRES_USER:     ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB:       ${DB_NAME}
+      POSTGRES_USER:     ${CATALOGO_DB_USER}
+      POSTGRES_PASSWORD: ${CATALOGO_DB_PASSWORD}
+      POSTGRES_DB:       ${CATALOGO_DB_NAME}
     volumes:
-      - pg_data_prod:/var/lib/postgresql/data
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-
+      - pg_data_catalogo_prod:/var/lib/postgresql/data
+      - ./catalogo-api/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${CATALOGO_DB_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
-  app:
+  catalogo-api:
     build:
-      context: .
+      context: ./catalogo-api
       dockerfile: Dockerfile.prod
-    container_name: biblioteca_app_prod
+    container_name: biblioteca_catalogo_api_prod
     environment:
-      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      DATABASE_URL: postgresql://${CATALOGO_DB_USER}:${CATALOGO_DB_PASSWORD}@db_catalogo:5432/${CATALOGO_DB_NAME}
       DEBUG: "false"
     ports:
       - "8000:8000"
     depends_on:
-      db:
+      db_catalogo:
         condition: service_healthy
-    restart: unless-stopped  
+    restart: unless-stopped
+
+  # ---------- Microsserviço 2: Empréstimos ----------
+  db_emprestimos:
+    image: postgres:16-alpine
+    container_name: biblioteca_db_emprestimos_prod
+    environment:
+      POSTGRES_USER:     ${EMPRESTIMOS_DB_USER}
+      POSTGRES_PASSWORD: ${EMPRESTIMOS_DB_PASSWORD}
+      POSTGRES_DB:       ${EMPRESTIMOS_DB_NAME}
+    volumes:
+      - pg_data_emprestimos_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EMPRESTIMOS_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  emprestimos-api:
+    build:
+      context: ./emprestimos-api
+      dockerfile: Dockerfile.prod
+    container_name: biblioteca_emprestimos_api_prod
+    environment:
+      DATABASE_URL: postgresql://${EMPRESTIMOS_DB_USER}:${EMPRESTIMOS_DB_PASSWORD}@db_emprestimos:5432/${EMPRESTIMOS_DB_NAME}
+      CATALOGO_API_URL: http://catalogo-api:8000
+      DEBUG: "false"
+    ports:
+      - "8001:8000"
+    depends_on:
+      db_emprestimos:
+        condition: service_healthy
+      catalogo-api:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
-  pg_data_prod:
+  pg_data_catalogo_prod:
+  pg_data_emprestimos_prod:
